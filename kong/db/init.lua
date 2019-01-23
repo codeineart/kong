@@ -164,8 +164,8 @@ function DB:init_worker()
 end
 
 
-function DB:connect()
-  local ok, err = self.connector:connect()
+function DB:connect(opts)
+  local ok, err = self.connector:connect(opts)
   if not ok then
     return nil, prefix_err(self, err)
   end
@@ -428,14 +428,12 @@ do
 
 
   function DB:are_014_apis_present()
-    local ok, err = self.connector:connect_migrations({ no_keyspace = true })
+    local ok, err = self.connector:check_connected()
     if not ok then
       return nil, prefix_err(self, err)
     end
 
     ok, err = self.connector:are_014_apis_present()
-
-    self.connector:close()
 
     if err then
       return nil, prefix_err(self, "failed checking for presence of 0.14 apis: " .. err)
@@ -446,16 +444,13 @@ do
 
 
   function DB:schema_bootstrap()
-    local ok, err = self.connector:connect_migrations({ no_keyspace = true })
+    local ok, err = self.connector:check_connected()
     if not ok then
       return nil, prefix_err(self, err)
     end
 
     local ok, err = self.connector:schema_bootstrap(self.kong_config,
                                                     DEFAULT_LOCKS_TTL)
-
-    self.connector:close()
-
     if not ok then
       return nil, prefix_err(self, "failed to bootstrap database: " .. err)
     end
@@ -465,15 +460,12 @@ do
 
 
   function DB:schema_reset()
-    local ok, err = self.connector:connect_migrations({ no_keyspace = true })
+    local ok, err = self.connector:check_connected()
     if not ok then
       return nil, prefix_err(self, err)
     end
 
     local ok, err = self.connector:schema_reset()
-
-    self.connector:close()
-
     if not ok then
       return nil, prefix_err(self, err)
     end
@@ -498,7 +490,7 @@ do
       error("options.run_up or options.run_teardown must be given", 2)
     end
 
-    local ok, err = self.connector:connect_migrations()
+    local ok, err = self.connector:check_connected()
     if not ok then
       return nil, prefix_err(self, err)
     end
@@ -516,14 +508,12 @@ do
         local ok, mod = utils.load_module_if_exists(t.namespace .. "." ..
                                                     mig.name)
         if not ok then
-          self.connector:close()
           return nil, fmt_err(self, "failed to load migration '%s': %s",
                               mig.name, mod)
         end
 
         local strategy_migration = mod[self.strategy]
         if not strategy_migration then
-          self.connector:close()
           return nil, fmt_err(self, "missing %s strategy for migration '%s'",
                               self.strategy, mig.name)
         end
@@ -536,7 +526,6 @@ do
           ok, err = self.connector:run_up_migration(mig.name,
                                                     strategy_migration.up)
           if not ok then
-            self.connector:close()
             return nil, fmt_err(self, "failed to run migration '%s' up: %s",
                                 mig.name, err)
           end
@@ -551,7 +540,6 @@ do
           ok, err = self.connector:record_migration(t.subsystem, mig.name,
                                                     state)
           if not ok then
-            self.connector:close()
             return nil, fmt_err(self, "failed to record migration '%s': %s",
                                 mig.name, err)
           end
@@ -563,7 +551,6 @@ do
             -- that could span all peers
             ok, err = self.connector:wait_for_schema_consensus()
             if not ok then
-              self.connector:close()
               return nil, prefix_err(self, err)
             end
           end
@@ -574,7 +561,6 @@ do
           local pok, perr, err = xpcall(f, debug.traceback, self.connector,
                                         mig_helpers)
           if not pok or err then
-            self.connector:close()
             return nil, fmt_err(self, "failed to run migration '%s' teardown: %s",
                                 mig.name, perr or err)
           end
@@ -582,7 +568,6 @@ do
           ok, err = self.connector:record_migration(t.subsystem, mig.name,
                                                     "teardown")
           if not ok then
-            self.connector:close()
             return nil, fmt_err(self, "failed to record migration '%s': %s",
                                 mig.name, err)
           end
@@ -597,7 +582,6 @@ do
             -- schema consensus
             ok, err = self.connector:wait_for_schema_consensus()
             if not ok then
-              self.connector:close()
               return nil, prefix_err(self, err)
             end
           end
@@ -616,7 +600,6 @@ do
         -- teardown step)
         ok, err = self.connector:wait_for_schema_consensus()
         if not ok then
-          self.connector:close()
           return nil, prefix_err(self, err)
         end
       end
@@ -635,7 +618,12 @@ do
       log("%d pending", n_pending)
     end
 
-    self.connector:close()
+    if run_up or run_teardown then
+      ok, err = self.connector:wait_for_schema_consensus()
+      if not ok then
+        return nil, prefix_err(self, err)
+      end
+    end
 
     return true
   end
@@ -673,8 +661,6 @@ do
         end
       end
     end
-
-    self.connector:close()
 
     return true
   end

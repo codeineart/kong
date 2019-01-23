@@ -188,7 +188,6 @@ end
 -- }
 --
 function State.load(db)
-
   log.debug("loading subsystems migrations...")
 
   local subsystems, err = load_subsystems(db, db.kong_config.loaded_plugins)
@@ -198,21 +197,17 @@ function State.load(db)
 
   log.verbose("retrieving %s schema state...", db.infos.db_desc)
 
-  local ok, err = db.connector:connect_migrations({ no_keyspace = true })
+  local ok, err = db.connector:check_connected()
   if not ok then
     return nil, prefix_err(db, err)
   end
 
   local rows, err = db.connector:schema_migrations()
   if err then
-    db.connector:close()
     return nil, prefix_err(db, "failed to check schema state: " .. err)
   end
 
   local legacy_res, err = db.connector:is_014(rows)
-
-  db.connector:close()
-
   if err then
     return nil, prefix_err(db, "failed to check legacy schema state: " ..
       err)

@@ -59,9 +59,13 @@ function Connector:connect()
 end
 
 
-function Connector:connect_migrations()
-  error(fmt("connect_migrations() not implemented for '%s' strategy",
-            self.database))
+function Connector:check_connected()
+  local conn = self:get_stored_connection()
+  if not conn then
+    return nil, "no connection opened"
+  end
+
+  return conn
 end
 
 
