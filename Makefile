@@ -13,7 +13,6 @@ endif
 
 .PHONY: install dev lint test test-integration test-plugins test-all fix-windows
 
-KONG_NETTLE_VERSION ?= `grep KONG_NETTLE_VERSION .requirements | awk -F"=" '{print $$2}'`
 KONG_GMP_VERSION ?= `grep KONG_GMP_VERSION .requirements | awk -F"=" '{print $$2}'`
 RESTY_VERSION ?= `grep RESTY_VERSION .requirements | awk -F"=" '{print $$2}'`
 RESTY_LUAROCKS_VERSION ?= `grep RESTY_LUAROCKS_VERSION .requirements | awk -F"=" '{print $$2}'`
