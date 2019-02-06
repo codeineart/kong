@@ -346,12 +346,10 @@ for _, strategy in helpers.each_strategy() do
             name     = "schema violation",
             strategy = strategy,
             message  = unindent([[
-              2 schema violations
-              (must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https';
-              service: required field missing)
+              schema violation
+              (must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https')
             ]], true, true),
             fields   = {
-              service     = "required field missing",
               ["@entity"] = {
                 "must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https'",
               }

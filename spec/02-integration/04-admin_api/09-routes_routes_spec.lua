@@ -138,12 +138,10 @@ for _, strategy in helpers.each_strategy() do
                 code    = Errors.codes.SCHEMA_VIOLATION,
                 name    = "schema violation",
                 message = unindent([[
-                  2 schema violations
-                  (must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https';
-                  service: required field missing)
+                  schema violation
+                  (must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https')
                 ]], true, true),
                 fields = {
-                  service   = "required field missing",
                   ["@entity"] = {
                     "must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https'"
                   }
@@ -162,12 +160,10 @@ for _, strategy in helpers.each_strategy() do
               assert.same({
                 code    = Errors.codes.SCHEMA_VIOLATION,
                 name    = "schema violation",
-                message = "2 schema violations " ..
-                          "(protocols: expected one of: http, https, tcp, tls; " ..
-                          "service: required field missing)",
+                message = "schema violation " ..
+                          "(protocols: expected one of: http, https, tcp, tls)",
                 fields = {
                   protocols = "expected one of: http, https, tcp, tls",
-                  service   = "required field missing",
                 }
               }, cjson.decode(body))
             end
@@ -533,12 +529,10 @@ for _, strategy in helpers.each_strategy() do
                   code    = Errors.codes.SCHEMA_VIOLATION,
                   name    = "schema violation",
                   message = unindent([[
-                  2 schema violations
-                  (must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https';
-                  service: required field missing)
+                  schema violation
+                  (must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https')
                 ]], true, true),
                   fields  = {
-                    service   = "required field missing",
                     ["@entity"] = {
                       "must set one of 'methods', 'hosts', 'paths' when 'protocols' is 'http' or 'https'"
                     }
@@ -557,12 +551,10 @@ for _, strategy in helpers.each_strategy() do
                 assert.same({
                   code    = Errors.codes.SCHEMA_VIOLATION,
                   name    = "schema violation",
-                  message = "2 schema violations " ..
-                    "(protocols: expected one of: http, https, tcp, tls; " ..
-                    "service: required field missing)",
+                  message = "schema violation " ..
+                            "(protocols: expected one of: http, https, tcp, tls)",
                   fields  = {
                     protocols = "expected one of: http, https, tcp, tls",
-                    service   = "required field missing",
                   }
                 }, cjson.decode(body))
 
