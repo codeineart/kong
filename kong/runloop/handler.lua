@@ -24,6 +24,7 @@ local kong        = kong
 local tostring    = tostring
 local tonumber    = tonumber
 local sub         = string.sub
+local find        = string.find
 local lower       = string.lower
 local fmt         = string.format
 local sort        = table.sort
@@ -298,7 +299,7 @@ end
 -- in the table below the `before` and `after` is to indicate when they run:
 -- before or after the plugins
 return {
-  build_router     = build_router,
+  build_router = build_router,
 
   -- exported for unit-testing purposes only
   _set_check_router_rebuild = _set_check_router_rebuild,
@@ -635,10 +636,13 @@ return {
       local service = match_t.service
       local upstream_url_t = match_t.upstream_url_t
 
+      -- Service-less Stream Route
       if not service then
-        -- Service-less Stream Route
-        upstream_url_t.host = var.server_addr
-        upstream_url_t.type = utils.hostname_type(upstream_url_t.host)
+        local host = var.server_addr
+
+        match_t.upstream_scheme = ssl_termination_ctx and "tls" or "tcp"
+        upstream_url_t.host = host
+        upstream_url_t.type = utils.hostname_type(host)
         upstream_url_t.port = tonumber(var.server_port)
       end
 
@@ -687,9 +691,13 @@ return {
         return kong.response.exit(404, { message = "no Route matched with those values" })
       end
 
-      local route              = match_t.route
-      local service            = match_t.service
-      local upstream_url_t     = match_t.upstream_url_t
+      local host           = var.host
+      local port           = tonumber(var.server_port)
+      local scheme         = var.scheme
+
+      local route          = match_t.route
+      local service        = match_t.service
+      local upstream_url_t = match_t.upstream_url_t
 
       local realip_remote_addr = var.realip_remote_addr
       local forwarded_proto
@@ -707,14 +715,14 @@ return {
 
       local trusted_ip = kong.ip.is_trusted(realip_remote_addr)
       if trusted_ip then
-        forwarded_proto = var.http_x_forwarded_proto or var.scheme
-        forwarded_host  = var.http_x_forwarded_host  or var.host
-        forwarded_port  = var.http_x_forwarded_port  or var.server_port
+        forwarded_proto = var.http_x_forwarded_proto          or scheme
+        forwarded_host  = var.http_x_forwarded_host           or host
+        forwarded_port  = tonumber(var.http_x_forwarded_port) or port
 
       else
-        forwarded_proto = var.scheme
-        forwarded_host  = var.host
-        forwarded_port  = var.server_port
+        forwarded_proto = scheme
+        forwarded_host  = host
+        forwarded_port  = port
       end
 
       local protocols = route and route.protocols
@@ -727,15 +735,44 @@ return {
       end
 
       -- Service-less HTTP Route
-      if service then
-        match_t.upstream_scheme = forwarded_proto
-        match_t.upstream_host   = forwarded_host
-        match_t.upstream_uri    = var.request_uri
-        upstream_url_t.scheme   = forwarded_proto
-        upstream_url_t.host     = forwarded_host
-        upstream_url_t.type     = utils.hostname_type(forwarded_host)
-        upstream_url_t.port     = forwarded_port
-        upstream_url_t.path     = "/"
+      if not service then
+        local service_host
+        local service_port
+
+        local http_host = var.http_host
+        if http_host then
+          http_host = lower(http_host)
+
+          local s = find(http_host, ":", 2, true)
+          if s then
+            local p = tonumber(sub(http_host, s + 1))
+            if p and p >= 1 and p <= 65535 then
+              local h = sub(http_host, 1, s - 1)
+              if h == host then
+                service_host = h
+                service_port = p
+              end
+            end
+
+          elseif http_host == host then
+            service_host = host
+            service_port = port
+          end
+        end
+
+        if not service_host then
+          service_host = host == var.server_name and var.server_addr or host
+        end
+
+        if not service_port then
+          service_port = var.server_port
+        end
+
+        match_t.upstream_scheme = scheme
+        match_t.upstream_host   = service_host
+        upstream_url_t.type     = utils.hostname_type(service_host)
+        upstream_url_t.host     = service_host
+        upstream_url_t.port     = service_port
       end
 
       balancer_setup_stage1(ctx, match_t.upstream_scheme,
