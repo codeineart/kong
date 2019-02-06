@@ -730,7 +730,7 @@ return {
       if service then
         match_t.upstream_scheme = forwarded_proto
         match_t.upstream_host   = forwarded_host
-        match_t.upstream_uri    =
+        match_t.upstream_uri    = var.request_uri
         upstream_url_t.scheme   = forwarded_proto
         upstream_url_t.host     = forwarded_host
         upstream_url_t.type     = utils.hostname_type(forwarded_host)
